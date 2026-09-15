@@ -1,0 +1,15 @@
+{
+  "name": "guitar-store-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Convenience scripts so 'npm run web' etc. still work from this root folder after the frontend/backend split — they just delegate into frontend/ or backend/.",
+  "scripts": {
+    "web": "npm --prefix frontend run web",
+    "start": "npm --prefix frontend run start",
+    "android": "npm --prefix frontend run android",
+    "ios": "npm --prefix frontend run ios",
+    "lint": "npm --prefix frontend run lint",
+    "server": "npm --prefix backend run start",
+    "server:dev": "npm --prefix backend run dev"
+  }
+}

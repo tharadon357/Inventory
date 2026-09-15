@@ -1,0 +1,27 @@
+# คัดลอกไฟล์นี้เป็น ".env" แล้วใส่ค่าจริงของเซิร์ฟเวอร์/ฐานข้อมูล
+# ห้าม commit ไฟล์ ".env" ตัวจริงขึ้น git (มีอยู่ใน .gitignore แล้ว)
+
+# ----- MySQL (phpMyAdmin) -----
+DB_HOST=119.59.102.161
+DB_PORT=3306
+DB_USER=std6730251115
+DB_PASSWORD=X7m^vT2r
+DB_NAME=ip_std6730251115
+
+# ----- Express server -----
+PORT=3083
+
+# ----- Auth -----
+# สร้างค่าใหม่ที่สุ่มและยาวพอ เช่นรันคำสั่ง: node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+JWT_SECRET=f37e1b7caab9c10bc6380a9d5db54d1055745764398ea6a556f7d541a964f2c546c81f37a14a820fd30255061fd4bb9
+JWT_EXPIRES_IN=8h
+
+# ใช้ตอนรัน scripts/seedAdmin.js เพื่อสร้างบัญชี admin คนแรก
+SEED_ADMIN_USERNAME=admin
+SEED_ADMIN_PASSWORD=123456
+
+# ----- Simple Admin Login สำหรับ POST /api/login (Guitar Store frontend) -----
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=guitar123
+
+EXPO_PUBLIC_API_URL=http://localhost:3083
