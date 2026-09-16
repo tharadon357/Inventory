@@ -27,12 +27,13 @@ CREATE TABLE IF NOT EXISTS Orders (
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- หมายเหตุ: ไม่ใส่ FOREIGN KEY เพราะบัญชีนักศึกษาบนโฮสต์นี้ไม่มีสิทธิ์ REFERENCES
+-- (รันแล้วจะขึ้น "#1142 - REFERENCES command denied") ไม่มี FK ก็ใช้งานได้ปกติ
 CREATE TABLE IF NOT EXISTS OrderItems (
     id INT AUTO_INCREMENT PRIMARY KEY,
     orderId INT NOT NULL,
     productId INT NULL,
     productName VARCHAR(255) NOT NULL,
     price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-    quantity INT NOT NULL DEFAULT 1,
-    CONSTRAINT fk_orderitems_order FOREIGN KEY (orderId) REFERENCES Orders(id)
+    quantity INT NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
