@@ -45,8 +45,11 @@ const PORT = Number(process.env.PORT) || 3083;
 // --------------------------------------------------------------------------
 // Database pool
 // --------------------------------------------------------------------------
+// หมายเหตุ: MySQL บนโฮสต์นี้รับเฉพาะการเชื่อมต่อจาก localhost เท่านั้น (แม้แต่จากเครื่อง
+// เดียวกันเอง ก็เชื่อมผ่าน IP สาธารณะไม่ได้ - ECONNREFUSED) จึงล็อกค่า host ไว้เป็น
+// 'localhost' ตรง ๆ แทนที่จะอ่านจาก DB_HOST ใน .env กัน .env ถูกเขียนทับผิดค่าแล้วพังซ้ำ
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || '119.59.102.161',
+  host: 'localhost',
   port: Number(process.env.DB_PORT) || 3306,
   user: process.env.DB_USER || 'std6730251115',
   password: process.env.DB_PASSWORD || 'X7m^vT2r',
