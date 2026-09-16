@@ -1,8 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,8 +14,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
 
 // ============================================================================
 // Guitar Store — tharadon — Port 3083
@@ -290,6 +291,92 @@ export default function GuitarStoreScreen() {
 
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+
+  // -- Image upload from device (web only) ------------------------------------
+  const fileInputRef = useRef<any>(null);
+  const [imageProcessing, setImageProcessing] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.style.display = 'none';
+    input.onchange = () => {
+      const file = input.files && input.files[0];
+      if (file) processPickedFile(file);
+      input.value = '';
+    };
+    document.body.appendChild(input);
+    fileInputRef.current = input;
+    return () => {
+      document.body.removeChild(input);
+      fileInputRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function handlePickImageFromDevice() {
+    setImageUploadError(null);
+    if (Platform.OS === 'web' && fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  }
+
+  function processPickedFile(file: File) {
+    setImageProcessing(true);
+    setImageUploadError(null);
+    const reader = new FileReader();
+    reader.onerror = () => {
+      setImageProcessing(false);
+      setImageUploadError('อ่านไฟล์รูปไม่สำเร็จ');
+    };
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '');
+      const img = new (window as any).Image();
+      img.onload = () => {
+        // ย่อขนาดรูปด้วย canvas ก่อนแปลงเป็น base64 เพื่อไม่ให้เกิน limit ของ DB/คำขอ
+        const MAX_DIM = 900;
+        let { width, height } = img;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIM) / width);
+            width = MAX_DIM;
+          } else {
+            width = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          setFormValues((prev) => ({ ...prev, image: dataUrl }));
+          setImageProcessing(false);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        // ลดคุณภาพลงเรื่อย ๆ จนกว่าขนาด base64 จะเล็กพอสำหรับคอลัมน์ image ใน DB (MEDIUMTEXT)
+        const MAX_BYTES = 900000; // ~900KB ของ base64 string
+        let quality = 0.75;
+        let compressed = canvas.toDataURL('image/jpeg', quality);
+        while (compressed.length > MAX_BYTES && quality > 0.25) {
+          quality -= 0.15;
+          compressed = canvas.toDataURL('image/jpeg', quality);
+        }
+        setFormValues((prev) => ({ ...prev, image: compressed }));
+        setImageProcessing(false);
+      };
+      img.onerror = () => {
+        setImageProcessing(false);
+        setImageUploadError('ไฟล์นี้ไม่ใช่รูปภาพที่ใช้งานได้');
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  }
 
   // -- Load products ---------------------------------------------------------
   const loadProducts = useCallback(async () => {
@@ -1052,6 +1139,32 @@ export default function GuitarStoreScreen() {
                 onChangeText={(t) => setFormValues((prev) => ({ ...prev, image: t }))}
               />
 
+              {Platform.OS === 'web' ? (
+                <View style={styles.imageUploadRow}>
+                  <TouchableOpacity
+                    style={styles.imageUploadButton}
+                    disabled={imageProcessing}
+                    onPress={handlePickImageFromDevice}>
+                    <Text style={styles.imageUploadButtonText}>
+                      {imageProcessing ? 'กำลังโหลดรูป...' : '📁 เลือกรูปจากเครื่อง'}
+                    </Text>
+                  </TouchableOpacity>
+                  {formValues.image ? (
+                    <TouchableOpacity
+                      style={styles.imageClearButton}
+                      onPress={() => setFormValues((prev) => ({ ...prev, image: '' }))}>
+                      <Text style={styles.imageClearButtonText}>ล้างรูป</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {imageUploadError ? <Text style={styles.errorText}>{imageUploadError}</Text> : null}
+
+              {formValues.image ? (
+                <Image source={{ uri: formValues.image }} style={styles.imagePreview} resizeMode="cover" />
+              ) : null}
+
               <Text style={styles.fieldLabel}>Status</Text>
               <View style={styles.categoryPickerRow}>
                 {['Active', 'Inactive'].map((s) => {
@@ -1628,6 +1741,42 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     fontSize: 14,
     color: COLORS.text,
+  },
+  imageUploadRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  imageUploadButton: {
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  imageUploadButtonText: {
+    color: COLORS.primary,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  imageClearButton: {
+    backgroundColor: '#FBEAE7',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  imageClearButtonText: {
+    color: COLORS.danger,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  imagePreview: {
+    width: '100%',
+    height: 160,
+    borderRadius: 12,
+    marginTop: 10,
+    backgroundColor: COLORS.backgroundAlt,
   },
   fieldRowSplit: {
     flexDirection: 'row',
